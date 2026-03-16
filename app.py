@@ -7,7 +7,7 @@ def get_range_for_difficulty(difficulty: str):
     if difficulty == "Normal":
         return 1, 100
     if difficulty == "Hard":
-        return 1, 50
+        return 1, 500  # FIX: Changed from 1-50 to 1-500 — Claude explained why smaller range = easier, not harder, confirming the fix via the in-app API call
     return 1, 100
 
 
@@ -20,7 +20,7 @@ def parse_guess(raw: str):
 
     try:
         if "." in raw:
-            value = int(float(raw))
+            return False, None, "Please enter a whole number, not a decimal."  # FIX: Claude suggested checking raw string for "." before int() to prevent silent rounding of decimals like 3.7 → 3
         else:
             value = int(raw)
     except Exception:
@@ -35,9 +35,9 @@ def check_guess(guess, secret):
 
     try:
         if guess > secret:
-            return "Too High", "📈 Go HIGHER!"
+            return "Too High", "📉 Go LOWER!"  # FIX: Hint strings were swapped — Claude identified comparison logic was correct but messages were reversed
         else:
-            return "Too Low", "📉 Go LOWER!"
+            return "Too Low", "📈 Go HIGHER!"  # FIX: Paired swap; verified by running app and confirming hints now match actual guess direction
     except TypeError:
         g = str(guess)
         if g == secret:
@@ -145,14 +145,12 @@ if st.session_state.status != "playing":
     st.stop()
 
 if submit:
-    st.session_state.attempts += 1
-
     ok, guess_int, err = parse_guess(raw_guess)
 
     if not ok:
-        st.session_state.history.append(raw_guess)
         st.error(err)
     else:
+        st.session_state.attempts += 1  # FIX: Moved inside else block — Claude Agent mode spotted counter incrementing before validation, burning attempts on bad input
         st.session_state.history.append(guess_int)
 
         if st.session_state.attempts % 2 == 0:
@@ -189,3 +187,51 @@ if submit:
 
 st.divider()
 st.caption("Built by an AI that claims this code is production-ready.")
+
+st.divider()
+st.subheader("🔍 Glitch Investigator")
+st.write("**Bug 1 — Hard difficulty has a smaller range than Normal (making it easier, not harder)**")
+
+glitch_code = """
+def get_range_for_difficulty(difficulty: str):
+    if difficulty == "Easy":
+        return 1, 20
+    if difficulty == "Normal":
+        return 1, 100
+    if difficulty == "Hard":
+        return 1, 50     # <-- the glitch
+    return 1, 100
+"""
+
+st.code(glitch_code, language="python")
+
+if st.button("Ask AI to Explain This Glitch 🤖"):
+    import anthropic
+    client = anthropic.Anthropic()
+
+    prompt = f"""
+In a number guessing game, there is a glitch in the difficulty range logic:
+
+{glitch_code}
+
+The game has three difficulty levels — Easy, Normal, and Hard.
+The expected behavior is that harder difficulties should be MORE challenging.
+
+Explain:
+1. What is wrong with the Hard difficulty range (1 to 50)?
+2. Why does a smaller range actually make the game EASIER, not harder?
+3. What range would actually make Hard mode harder than Normal?
+
+Keep the explanation clear and concise, as if explaining to a beginner.
+"""
+
+    with st.spinner("Asking Claude..."):
+        response = client.messages.create(
+            model="claude-opus-4-6",
+            max_tokens=1024,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        explanation = response.content[0].text
+
+    st.markdown("### Claude's Explanation")
+    st.write(explanation)

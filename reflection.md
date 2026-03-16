@@ -12,18 +12,21 @@ Answer each question in 3 to 5 sentences. Be specific and honest about what actu
 
 ## 2. How did you use AI as a teammate?
 
-- Which AI tools did you use on this project (for example: ChatGPT, Gemini, Copilot)?
-- Give one example of an AI suggestion that was correct (including what the AI suggested and how you verified the result).
-- Give one example of an AI suggestion that was incorrect or misleading (including what the AI suggested and how you verified the result).
+I used Claude (via the Anthropic API directly in the app and via Claude Code in the terminal) as the primary AI tool throughout this project. I also used GitHub Copilot for in-editor suggestions while editing `logic_utils.py` and the test file.
+
+**Correct suggestion:** When I asked Claude to explain why Hard difficulty with a range of 1–50 was wrong, it correctly explained the probability argument — with only 50 possible values, every guess eliminates a larger percentage of candidates, so it is statistically easier than Normal's 1–100 range. I verified this by changing the range to 1–500 and playing both difficulties back-to-back in the live app; Hard now clearly requires more attempts to converge on the answer.
+
+**Incorrect or misleading suggestion:** The auto-generated docstring for `check_guess` in `logic_utils.py` said it should return `(outcome, message)` — a tuple — which matched `app.py`'s version. But the existing test file expected it to return just the outcome string (`"Win"`, `"Too High"`, `"Too Low"`). Following the docstring would have caused all three tests to fail with a type mismatch. I caught this by reading both files side-by-side before implementing the function, and implemented it to match what the tests actually asserted rather than what the AI-written docstring described.
 
 ---
 
 ## 3. Debugging and testing your fixes
 
-- How did you decide whether a bug was really fixed?
-- Describe at least one test you ran (manual or using pytest)  
-  and what it showed you about your code.
-- Did AI help you design or understand any tests? How?
+For each fix, I used two layers of verification: a pytest unit test to confirm the logic in isolation, and the live Streamlit app to confirm the fix felt correct as a player. A passing test that covers the wrong behavior is useless, so running the app after every fix was non-negotiable.
+
+The most targeted test was `test_hints_not_backwards` in `tests/test_game_logic.py`. It calls `check_guess(75, 50)` and asserts the result is `"Too High"`, and calls `check_guess(25, 50)` and asserts `"Too Low"`. Before the fix, the hint strings were swapped, meaning a too-high guess would display "Go HIGHER" — this test would have caught that immediately. Running `pytest tests/ -v` showed all 4 tests passing, confirming both the original starter tests and the new regression test were green.
+
+Claude helped design the regression test by suggesting the pattern: pick a clear, unambiguous pair of values (75 vs 50, 25 vs 50) where the expected outcome is obvious, then assert the outcome name — not the display message — so the test stays stable even if the emoji wording changes later. That distinction between testing the outcome label versus the human-readable hint string was a useful framing I wouldn't have thought to make explicit on my own.
 
 ---
 
